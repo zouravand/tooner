@@ -3,6 +3,8 @@
 namespace Tedon\Tooner;
 
 use DateTimeInterface;
+use ReflectionClass;
+use stdClass;
 use Tedon\Tooner\Exceptions\ToonEncodingException;
 
 /**
@@ -43,6 +45,8 @@ class ToonEncoder
         if ($depth > $this->options['max_depth']) {
             throw new ToonEncodingException('Maximum encoding depth exceeded');
         }
+
+        $value = $this->getObjectProperties($value);
 
         return match (true) {
             is_null($value) => 'null',
@@ -135,7 +139,21 @@ class ToonEncoder
         if (empty($arr)) {
             return true;
         }
-        return array_keys($arr) === range(0, count($arr) - 1);
+        $keys = array_keys($arr);
+
+        // Check if keys are sequential integers starting from 0
+        if ($keys === range(0, count($arr) - 1)) {
+            return true;
+        }
+
+        // Check if keys are numeric strings representing sequential integers
+        // This handles cases where JSON/database results use string keys like "0", "1", "2"
+        if ($this->options['normalize_numeric_keys'] ?? true) {
+            $normalizedKeys = array_map(fn($k) => is_numeric($k) ? (int)$k : $k, $keys);
+            return $normalizedKeys === range(0, count($arr) - 1);
+        }
+
+        return false;
     }
 
     /**
@@ -258,6 +276,8 @@ class ToonEncoder
 
         foreach ($properties as $key => $val) {
             $encodedKey = $this->encodeObjectKey($key);
+
+            $val = $this->getObjectProperties($val);
 
             // Handle arrays
             if (is_array($val) && !empty($val)) {
@@ -419,9 +439,60 @@ class ToonEncoder
     /**
      * Get object properties (handles both arrays and objects)
      */
-    private function getObjectProperties(object|array $value): array
+    private function getObjectProperties(mixed $value): mixed
     {
-        return is_array($value) ? $value : get_object_vars($value);
+        if(!is_array($value) && !is_object($value)) {
+            return $value;
+        }
+        if (is_array($value)) {
+            $properties = $value;
+        } elseif ($value instanceof stdClass) {
+            $properties = (array)$value;
+        } elseif (method_exists($value, 'toArray')) {
+            // If object has toArray() → use it
+            $properties = $value->toArray();
+        } elseif ($value instanceof \JsonSerializable) {
+            // Try JsonSerializable
+            $properties = (array) $value->jsonSerialize();
+        } else {
+            // Fallback to reflection
+            $reflection = new ReflectionClass($value);
+            $properties = [];
+
+            foreach ($reflection->getProperties() as $prop) {
+                if ($prop->isStatic()) continue;
+                if (method_exists($prop, 'isInitialized') && !$prop->isInitialized($value)) {
+                    continue;
+                }
+                $properties[$prop->getName()] = $prop->getValue($value);
+            }
+        }
+
+        // Filter null values if skip_nulls is enabled
+        if ($this->options['skip_nulls'] ?? false) {
+            $properties = array_filter($properties, fn($val) => $val !== null);
+        }
+
+        // Normalize numeric string keys to integer keys if enabled
+        // This handles cases where JSON/database results use string keys like "0", "1", "2"
+        if (is_array($properties) && ($this->options['normalize_numeric_keys'] ?? true)) {
+            $properties = $this->normalizeNumericKeys($properties);
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Normalize numeric string keys to integer keys
+     */
+    private function normalizeNumericKeys(array $arr): array
+    {
+        $normalized = [];
+        foreach ($arr as $key => $value) {
+            $newKey = is_string($key) && is_numeric($key) && (string)(int)$key === $key ? (int)$key : $key;
+            $normalized[$newKey] = $value;
+        }
+        return $normalized;
     }
 
     /**

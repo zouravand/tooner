@@ -150,6 +150,12 @@ return [
 
     // Include explicit array lengths in output
     'explicit_lengths' => true,
+
+    // Skip null values when encoding objects
+    'skip_nulls' => false,
+
+    // Normalize numeric string keys ("0", "1") to integers (0, 1)
+    'normalize_numeric_keys' => true,
 ];
 ```
 
@@ -292,6 +298,35 @@ $decoded = $tooner->decode($encoded);
 // DateTime objects are automatically restored
 ```
 
+### Skipping Null Values
+
+When working with database records or APIs, you often have null values that you want to omit from the output:
+
+```php
+$users = [
+    [
+        'id' => 7,
+        'first_name' => 'John',
+        'last_name' => 'Doe',
+        'email' => 'test@yahoo.com',
+        'status' => 0,
+    ],
+    [
+        'id' => 13,
+        'first_name' => 'Jolie',
+        'last_name' => 'Diss',
+        'email' => 'example@gmail.com',
+        'status' => 1,
+    ],
+];
+
+// Enable skip_nulls to omit null values
+$tooner = new Tooner(['skip_nulls' => true]);
+$encoded = $tooner->encode($users);
+
+// Output - only non-null fields are shown.
+```
+
 ## Direct Encoder/Decoder Access
 
 For more control, use the encoder and decoder directly:
@@ -343,6 +378,8 @@ try {
 | `indentation` | int | `2` | Number of indent characters per level |
 | `indent_char` | string | `' '` | Character used for indentation (space or tab) |
 | `explicit_lengths` | bool | `true` | Include `[n]` length indicators in array declarations |
+| `skip_nulls` | bool | `false` | Skip properties with null values when encoding objects |
+| `normalize_numeric_keys` | bool | `true` | Convert numeric string keys ("0", "1") to integer keys for proper array formatting |
 
 ## Use Cases
 

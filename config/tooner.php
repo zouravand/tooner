@@ -9,4 +9,6 @@ return [
     'indentation' => env('TOON_INDENTATION', 2),
     'indent_char' => env('TOON_INDENT_CHAR', ' '),
     'explicit_lengths' => env('TOON_EXPLICIT_LENGTHS', true),
+    'skip_nulls' => env('TOON_SKIP_NULLS', false),
+    'normalize_numeric_keys' => env('TOON_NORMALIZE_NUMERIC_KEYS', true),
 ];
