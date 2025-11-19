@@ -2,10 +2,8 @@
 
 namespace Tedon\Tooner;
 
-use Exceptions\ToonEncodingException;
+use Tedon\Tooner\Exceptions\ToonEncodingException;
 use Tedon\Tooner\Exceptions\ToonDecodingException;
-use Tedon\Tooner\ToonDecoder;
-use Tedon\Tooner\ToonEncoder;
 
 class Tooner
 {
@@ -48,7 +46,7 @@ class Tooner
      * @return string
      * @throws ToonDecodingException
      */
-    public function decode(string $value, array $options = []): string
+    public function decode(string $value, array $options = []): mixed
     {
         return $this->getDecoder()->decode($value, $options);
     }
